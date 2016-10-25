@@ -1,30 +1,25 @@
 package main
 
 import (
-	"fmt"
+	"math/rand"
 	"strconv"
 	"time"
 )
 
-const playerCount = 4
-
 func main() {
-	scores := make([]int, playerCount)
+	scores := make([]int, 10)
 	stop := newTimer(time.Duration(time.Second * 60))
 	stopFanout := NewFanout(stop)
 
+	gameEvents := make(chan gameEvent)
+	gameEventFanin := NewFanIn(gameEvents)
+
 	for i := range scores {
-		player(strconv.Itoa(i), stopFanout.NewListener())
+		pchan := player(strconv.Itoa(i), stopFanout.NewListener())
+		gameEventFanin.Register(pchan)
 	}
-}
 
-type Fanout interface {
-	Register(output chan<- bool)
-	NewListener() <-chan bool
-}
-
-type fanout struct {
-	outputs []chan<- bool
+	gameOver := <-stopFanout
 }
 
 type gameEvent struct {
@@ -32,39 +27,13 @@ type gameEvent struct {
 	roll   int
 }
 
-func NewFanout(input <-chan bool) Fanout {
-	fo := new(fanout)
-
-	go func() {
-		for {
-			a := <-input
-			fmt.Println(a, fo.outputs)
-			for _, oc := range fo.outputs {
-				go dispatch(oc, a)
-			}
-		}
-	}()
-
-	return fo
-}
-
-func dispatch(c chan<- bool, b bool) {
-	c <- b
-}
-
-func (fo *fanout) Register(output chan<- bool) {
-	fo.outputs = append(fo.outputs, output)
-}
-
-func (fo *fanout) NewListener() <-chan bool {
-	o := make(chan bool)
-	fo.Register(o)
-	return o
-}
-
 func player(name string, stop <-chan bool) (roll <-chan gameEvent) {
 	roll = make(chan gameEvent)
 	return roll
+}
+
+func rollDie() int {
+	return rand.Intn(5) + 1
 }
 
 func newTimer(d time.Duration) <-chan bool {

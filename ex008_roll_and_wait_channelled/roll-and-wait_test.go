@@ -25,3 +25,26 @@ func TestFanout(t *testing.T) {
 		t.Error("Did not recieve message on channel one")
 	}
 }
+
+func TestFanIn(t *testing.T) {
+	outputChan := make(chan gameEvent)
+	fi := NewFanIn(outputChan)
+
+	inputChanOne := make(chan gameEvent)
+	inputChanTwo := make(chan gameEvent)
+
+	fi.Register(inputChanOne)
+	fi.Register(inputChanTwo)
+
+	inputChanOne <- gameEvent{"bob", 5}
+	inputChanTwo <- gameEvent{"joe", 6}
+
+	if x := <-outputChan; x.player != "bob" {
+		t.Error("Did not recieve message")
+	}
+
+	if x := <-outputChan; x.player != "joe" {
+		t.Error("Did not recieve message")
+	}
+
+}
